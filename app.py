@@ -59,14 +59,24 @@ def create_flow():
         return jsonify({'flow': flow}), 201
 
 #Delete flow
-@app.route('/todo/api/v1.0/delete/<int:in_port>', methods=['DELETE'])
-def delete_flow(in_port):
-    flow = [flow for flow in flows if flow['in_port'] == in_port]
+@app.route('/todo/api/v1.0/delete/<int:flow_id>', methods=['DELETE'])
+def delete_flow(flow_id):
+    flow = [flow for flow in flows if flow['id'] == flow_id]
     if len(flow) == 0:
         abort(404)
+    in_portVariable = str(flow[0]['in_port'])
+    concat = "ovs-ofctl del-flows s1 in_port=%s" % in_portVariable
     flows.remove(flow[0])
-    inport = int()
-    return jsonify({'result': True})
+    subprocess.call(concat, shell = True)
+    lol = 0
+    check = True
+    while check:
+        flow1 = [flow1 for flow1 in flows if flow1['in_port'] == in_portVariable]
+        if len(flow1) != 0:
+                flows.remove(flow1[0])
+                check = True
+                lol = lol + 1
+    return lol
 
 if __name__ == '__main__':
         app.run(debug=True)
