@@ -20,5 +20,10 @@ def get_flowscli():
         output, err = p.communicate()
         return output + "\n"
 
+#Show all flows in json
+@app.route('/todo/api/v1.0/readall/flowsjson', methods=['GET'])
+def get_flowsjson():
+        return jsonify({'flows': flows})
+
 if __name__ == '__main__':
         app.run(debug=True)
