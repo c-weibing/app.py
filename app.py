@@ -25,5 +25,13 @@ def get_flowscli():
 def get_flowsjson():
         return jsonify({'flows': flows})
 
+#Select flow to show
+@app.route('/todo/api/v1.0/readone/<int:flow_id>', methods=['GET'])
+def get_flow(flow_id):
+        flow = [ flow for flow in flows if flow['id'] == flow_id]
+        if len(flow) == 0:
+                abort(404)
+        return jsonify({'flows': flow[0]})
+
 if __name__ == '__main__':
         app.run(debug=True)
