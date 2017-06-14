@@ -32,7 +32,6 @@ def get_flowscli():
 @app.route('/todo/api/v1.0/readall/flowsjson', methods=['GET'])
 def get_flowsjson():
         return jsonify({'flows': flows})
-		
 #Select flow to show
 @app.route('/todo/api/v1.0/readone/<int:flow_id>', methods=['GET'])
 def get_flow(flow_id):
@@ -86,10 +85,10 @@ def create_flow():
         flow1 = [flow1 for flow1 in flows if flow1['priority'] == priorCheck and flow1['in_port'] == in_portCheck]
         if len(flow1) == 0:
                 flows.append(flow)
-                prior = int(request.json['priority'])
-                inport = int(request.json['in_port'])
-                out = int(request.json['output'])
-                concat = "sudo ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (prior,inport,out)
+                prior = request.json['priority']
+                inport = request.json['in_port']
+                out = request.json['output']
+                concat = "sudo ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (int(prior),int(inport),int(out))
                 subprocess.call(concat, shell = True)
         else:
                 abort(400)
@@ -101,10 +100,10 @@ def delete_flow(flow_id):
     flow = [flow for flow in flows if flow['id'] == flow_id]
     if len(flow) == 0:
         abort(404)
-    #converting to int doesnt work
-    in_portVar = str(flow[0]['in_port'])
 
-    concat = "sudo ovs-ofctl del-flows s1 in_port=%s" % in_portVar
+    in_portVar = flow[0]['in_port']
+
+    concat = "sudo ovs-ofctl del-flows s1 in_port=%i" % int(in_portVar)
     subprocess.call(concat, shell = True)
     flows.remove(flow[0])
 
@@ -130,7 +129,7 @@ def update_specificFlow(flow_id):
     flow = [flow for flow in flows if flow['id'] == flow_id]
     if len(flow) == 0:
         abort(404)
-   #check if output has been entered
+    #check if output has been entered
     if not request.json or not 'output' in request.json:
         abort(400)
 
@@ -143,12 +142,12 @@ def update_specificFlow(flow_id):
                 abort(400)
 
     getOutput = request.json['output']
-    getPriority = int(flow[0]['priority'])
-    getInPort = int(flow[0]['in_port'])
+    getPriority = flow[0]['priority']
+    getInPort = flow[0]['in_port']
 
     flow[0]['output'] = getOutput
 
-    specificUpdate = "sudo ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (getPriority,getInPort,getOutput)
+    specificUpdate = "sudo ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (int(getPriority),int(getInPort),int(getOutput))  
     subprocess.call(specificUpdate, shell = True)
 
     return jsonify({'flow': flow[0]})
@@ -160,7 +159,8 @@ def update_bulkFlow():
         abort(400)
     if not request.json or not 'in_port' in request.json:
         abort(400)
-		    if 'in_port' in request.json:
+
+    if 'in_port' in request.json:
         try:
                 portCheckInt = int(request.json['in_port'])
         except ValueError:
@@ -193,7 +193,7 @@ def update_bulkFlow():
 def exit_handler():
     delAll = "sudo ovs-ofctl del-flows s1"
     subprocess.call(delAll, shell = True)
-	
+
 atexit.register(exit_handler)
 
 if __name__ == '__main__':
