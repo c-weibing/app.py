@@ -1,8 +1,20 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request, abort, make_response
+from flask_httpauth import HTTPBasicAuth
 import subprocess, atexit
 
 app = Flask(__name__)
+auth = HTTPBasicAuth()
+
+@auth.get_password
+def get_password(username):
+	if username == 'weibing':
+		return 'python'
+	return None
+
+@auth.error_handler
+def unauthorized():
+    return make_response(jsonify({'error': 'Unauthorized access'}), 403)
 
 flows = [
         {
@@ -21,10 +33,11 @@ def not_found(error):
 #Bad request
 @app.errorhandler(400)
 def bad_request(error):
-    return make_response(jsonify({'error': '1.priority/in_port/output field is missing. 2.in_port and priority value cannot be the same as existing. 3.Please input a valid integer. 4.Invalid id chosen (flow 0 cannot be edited)'}), 400)
+    return make_response(jsonify({'error': '1.priority/in_port/output field is missing. 2.in_port and priority value cannot be the same as existing. 3.Please input a valid integer. 4.Invalid id chosen (flow 0 cannot be edited). 5. In_port value does not exist in current flows, update stopped'}), 400)
 
 #Read all flows in cli
 @app.route('/todo/api/v1.0/readall/flowscli', methods=['GET'])
+@auth.login_required
 def get_flowscli():
     p = subprocess.Popen(["sudo", "ovs-ofctl", "dump-flows", "s1"], stdout=subprocess.PIPE)
     output, err = p.communicate()
@@ -32,11 +45,13 @@ def get_flowscli():
 
 #Read all flows in json
 @app.route('/todo/api/v1.0/readall/flowsjson', methods=['GET'])
+@auth.login_required
 def get_flowsjson():
     return jsonify({'flows': flows})
-
+		
 #Read one flow
 @app.route('/todo/api/v1.0/readone/<int:flow_id>', methods=['GET'])
+@auth.login_required
 def get_flow(flow_id):
     flow = [ flow for flow in flows if flow['id'] == flow_id]
     if len(flow) == 0:
@@ -45,6 +60,7 @@ def get_flow(flow_id):
 
 #Create flow
 @app.route('/todo/api/v1.0/create/addflows', methods=['POST'])
+@auth.login_required
 def create_flow():
     #check priority,in_port,output 3 variables has be entered
     if not request.json or not 'priority' in request.json:
@@ -64,12 +80,13 @@ def create_flow():
     if 'in_port' in request.json:
         try:
             inportCheckInt = int(request.json['in_port'])
-        except ValueError:
+	except ValueError:
             abort(400)
+
     if 'output' in request.json:
         try:
             outputCheckInt  = int(request.json['output'])
-        except ValueError:
+	except ValueError:
             abort(400)
 
     appendFlow = {
@@ -93,23 +110,24 @@ def create_flow():
         subprocess.call(sudoAddFlow, shell = True)
     else:
         abort(400)
-
+		
     #Show created flow
     return jsonify({'flow': appendFlow}), 201
 
 #Delete flow - Note containers that have the same in_port value as flow_id's in_port value will also be deleted
 @app.route('/todo/api/v1.0/delete/<int:flow_id>', methods=['DELETE'])
+@auth.login_required
 def delete_flow(flow_id):
     #check if flow with flow_id exists
     flow = [flow for flow in flows if flow['id'] == flow_id]
-
+	
     if len(flow) == 0:
         abort(404)
 
     #abort if flow_id is 0, don't delete flow 0
     if flow_id == 0:
-        abort(400)
-
+	abort(400)
+    
     #get in_port variable from container where id=flow_id
     fetchInport = flow[0]['in_port']
 
@@ -121,19 +139,20 @@ def delete_flow(flow_id):
     #check if other containers have the same in_port number, if so, delete
     check = True
     while check:
-        flow1 = [flow1 for flow1 in flows if flow1['in_port'] == fetchInport]
-        if len(flow1) != 0:
-            flows.remove(flow1[0])
-            check = True
-            flow1 = ""
-        else:
-            break
+       	flow1 = [flow1 for flow1 in flows if flow1['in_port'] == fetchInport]
+       	if len(flow1) != 0:
+      		flows.remove(flow1[0])
+       		check = True
+      		flow1 = ""
+      	else:
+       		break
 
     #after deleting, show everything in the json container again
     return jsonify({'flows': flows})
 
 #Update output field of specific flow
 @app.route('/todo/api/v1.0/update/<int:flow_id>', methods=['PUT'])
+@auth.login_required
 def update_specificFlow(flow_id):
     #check if flow id exists
     flow = [flow for flow in flows if flow['id'] == flow_id]
@@ -163,7 +182,7 @@ def update_specificFlow(flow_id):
     flow[0]['output'] = getOutput
 
     #update in cli the output field of flow_id
-    specificUpdate = "sudo ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (int(fetchPriority),int(fetchInport),int(getOutput))
+    specificUpdate = "sudo ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (int(fetchPriority),int(fetchInport),int(getOutput))  
     subprocess.call(specificUpdate, shell = True)
 
     #show updated container
@@ -171,6 +190,7 @@ def update_specificFlow(flow_id):
 
 #Update output of all flows with the same in_port specified by user - Bulk update
 @app.route('/todo/api/v1.0/update/all', methods=['PUT'])
+@auth.login_required
 def update_bulkFlow():
     #check output, in_port 2 variables has be entered
     if not request.json or not 'output' in request.json:
@@ -190,18 +210,24 @@ def update_bulkFlow():
             outputCheckInt  = int(request.json['output'])
         except ValueError:
             abort(400)
-
+ 	
     getInport = request.json['in_port']
     getOutput = request.json['output']
+
+    #check if user has entered a in_port value that does not exist in existing containers	    
+    flow = [flow for flow in flows if flow['in_port'] == getInport]
+    if len(flow) == 0:
+	abort(400)
+	
     #check if other containers have the same in_port number but different output, 
     #if so, update output field to match user input
     check = True
     while check:
-        flow = [flow for flow in flows if flow['in_port'] == getInport and flow['output'] != getOutput]
-        if len(flow) != 0:
-            flow[0]['output'] = getOutput
+        flow1 = [flow1 for flow1 in flows if flow1['in_port'] == getInport and flow1['output'] != getOutput]
+        if len(flow1) != 0:
+            flow1[0]['output'] = getOutput
             check = True
-            flow = ""
+            flow1 = ""
         else:
             break
 
@@ -220,5 +246,4 @@ def exit_handler():
 atexit.register(exit_handler)
 
 if __name__ == '__main__':
-        app.run(debug=True)
-
+    app.run(debug=True)
