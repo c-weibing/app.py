@@ -26,7 +26,7 @@ def bad_request(error):
 def get_flowscli():
         p = subprocess.Popen(["ovs-ofctl", "dump-flows", "s1"], stdout=subprocess.PIPE)
         output, err = p.communicate()
-        return output + "\n"
+        return output
 
 #Show all flows in json
 @app.route('/todo/api/v1.0/readall/flowsjson', methods=['GET'])
