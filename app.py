@@ -58,12 +58,20 @@ def create_flow():
                 'output': request.json['output'],
         }
 
-        flows.append(flow)
-        prior = int(request.json['priority'])
-        inport = int(request.json['in_port'])
-        out = int(request.json['output'])
-        concat = "ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (prior,inport,out)
-        subprocess.call(concat, shell = True)
+        priorCheck = request.json['priority']
+        in_portCheck = request.json['in_port']
+
+        #if a container that has the same priority and in_port as what the user inputted then abort, because that will replace the current instead of adding
+        flow1 = [flow1 for flow1 in flows if flow1['priority'] == priorCheck and flow1['in_port'] == in_portCheck]
+        if len(flow1) == 0:
+                flows.append(flow)
+                prior = int(request.json['priority'])
+                inport = int(request.json['in_port'])
+                out = int(request.json['output'])
+                concat = "ovs-ofctl add-flow s1 priority=%i,in_port=%i,actions=output:%i" % (prior,inport,out)
+                subprocess.call(concat, shell = True)
+        else:
+                abort(400)
         return jsonify({'flow': flow}), 201
 
 #Delete flow
