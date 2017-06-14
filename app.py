@@ -80,21 +80,24 @@ def delete_flow(flow_id):
     flow = [flow for flow in flows if flow['id'] == flow_id]
     if len(flow) == 0:
         abort(404)
-    in_portVariable = str(flow[0]['in_port'])
-    concat = "ovs-ofctl del-flows s1 in_port=%s" % in_portVariable
-    flows.remove(flow[0])
+    in_portVar = str(flow[0]['in_port'])
+    concat = "ovs-ofctl del-flows s1 in_port=%s" % in_portVar
     subprocess.call(concat, shell = True)
+    flows.remove(flow[0])
+    
+   #check if other containers have the same in_port number it will also be deleted from the json container because that's how the cli works
 
     check = True
     while check:
-        flow1 = [flow1 for flow1 in flows if flow1['in_port'] == in_portVariable]
+        flow1 = [flow1 for flow1 in flows if flow1['in_port'] == in_portVar]
         if len(flow1) != 0:
                 flows.remove(flow1[0])
                 check = True
                 flow1 = ""
         else:
                 break
-    return
+    #after deleting, show everything in the json container again
+    return jsonify({'flows': flows})
 
 if __name__ == '__main__':
         app.run(debug=True)
