@@ -13,6 +13,14 @@ flows = [
         }
 ]
 
+@app.errorhandler(404)
+def not_found(error):
+    return make_response(jsonify({'error': 'No such task'}), 404)
+
+@app.errorhandler(400)
+def bad_request(error):
+    return make_response(jsonify({'error': '1. priority/in_port/output field is missing. 2. in_port and priority value cannot be the same'}), 400)
+
 #Show all flows in cli
 @app.route('/todo/api/v1.0/readall/flowscli', methods=['GET'])
 def get_flowscli():
