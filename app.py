@@ -58,5 +58,15 @@ def create_flow():
         subprocess.call(concat, shell = True)
         return jsonify({'flow': flow}), 201
 
+#Delete flow
+@app.route('/todo/api/v1.0/delete/<int:in_port>', methods=['DELETE'])
+def delete_flow(in_port):
+    flow = [flow for flow in flows if flow['in_port'] == in_port]
+    if len(flow) == 0:
+        abort(404)
+    flows.remove(flow[0])
+    inport = int()
+    return jsonify({'result': True})
+
 if __name__ == '__main__':
         app.run(debug=True)
