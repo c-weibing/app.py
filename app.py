@@ -68,15 +68,17 @@ def delete_flow(flow_id):
     concat = "ovs-ofctl del-flows s1 in_port=%s" % in_portVariable
     flows.remove(flow[0])
     subprocess.call(concat, shell = True)
-    lol = 0
+
     check = True
     while check:
         flow1 = [flow1 for flow1 in flows if flow1['in_port'] == in_portVariable]
         if len(flow1) != 0:
                 flows.remove(flow1[0])
                 check = True
-                lol = lol + 1
-    return lol
+                flow1 = ""
+        else:
+                break
+    return
 
 if __name__ == '__main__':
         app.run(debug=True)
